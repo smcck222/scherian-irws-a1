@@ -1,6 +1,6 @@
-###CS7IS3 - Information Retrieval and Web Search
-###Individual Assignment - 1
-###Lucene Based Search Engine 
+### CS7IS3 - Information Retrieval and Web Search
+### Individual Assignment - 1
+### Lucene Based Search Engine 
 
 **WHAT THIS REPO CONTAINS:**
 
