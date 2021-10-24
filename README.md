@@ -14,15 +14,16 @@
 This folder contains the results from QuerySearch in the format for trec_eval : query_id, Q0, document_id, rank, score, STANDARD 
 There are different files for different similarity measures + analyzers. Refer to the README.md inside the results folder for more info.
 
-4. pom.xml 
+3. pom.xml 
 
 Contains required dependencies to be installed before running the java code (includes Lucene version - 8.10.0). 
 
-6. final_result.txt 
+4. final_result.txt 
 
 Result file with the highest MaP score (English Analyzer + BM25).
 
 **TO EXECUTE:**
+
 Run the following commands:
 
 1. mvn clean && mvn install
