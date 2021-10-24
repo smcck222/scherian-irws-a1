@@ -4,7 +4,7 @@
 
 **WHAT THIS REPO CONTAINS:**
 
-1. The Java scripts are in the src/java/ folder, there are 3 files: 
+1. The Java scripts are in the src/main/java/scherian folder, there are 3 files: 
    - Main.java - Starting point of execution.
    - CreateIndex.java - Indexes the 1400 documents in the cran.all.1400 collection to the index folder. 
    - QuerySearch.java - Reads the 225 queries from cran.qry, parses it and searches the index to return 1000 hits per query and write results into the result.txt file.
