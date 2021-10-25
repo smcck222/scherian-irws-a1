@@ -24,11 +24,9 @@ Result file with the highest MaP score (English Analyzer + BM25).
 
 **TO EXECUTE:**
 
-Run the following commands:
+Run the following command:
 
-1. mvn clean && mvn install
-2. mvn package
-3. java -jar target/Project1-1.0.jar
+java -jar target/Project1-1.0.jar
 
 **TO RUN TREC_EVAL:**
 
