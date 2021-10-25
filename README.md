@@ -17,6 +17,7 @@ There are different files for different similarity measures + analyzers. Refer t
 Result file with the highest MaP score (English Analyzer + BM25).
 
 **TO EXECUTE:**
+
 I've exported the project and all it's dependencies from my local system to a jar file that is in the scherian-irws-a1/target/ folder.
 Simply run the following command: 
 
