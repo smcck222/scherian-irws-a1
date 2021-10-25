@@ -26,14 +26,14 @@ Result file with the highest MaP score (English Analyzer + BM25).
 
 Run the following command:
 
-java -jar target/Project1-1.0.jar
+sudo java -jar target/Project1-1.0.jar
 
 **TO RUN TREC_EVAL:**
 
 For MaP scores:
 
-trec_eval/trec_eval -m map qrelcorrected final_result.txt
+sudo trec_eval/trec_eval -m map qrelcorrected final_result.txt
 
 For recall scores: 
 
-trec_eval/trec_eval -m recall qrelcorrected final_result.txt
+sudo trec_eval/trec_eval -m recall qrelcorrected final_result.txt
