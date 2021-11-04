@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -19,7 +20,18 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.similarities.*;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
+
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.DirectoryReader;
+
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -30,117 +42,98 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
- 
-public class CreateIndex
+import sun.jvm.hotspot.types.CIntegerField;
+
+public class QuerySearch
 {
-	// Directory where the search index will be saved. 
+	// Directory where the index from CreateIndex are saved.
 	private static String INDEX_DIRECTORY = "index";
 
-
-	public static void create_index() throws IOException
+	public static void query_search() throws IOException, ParseException
 	{
-		// Directory with the CRAN data.
-		final Path CRAN_ALL_DIR = Paths.get("cran/cran.all.1400");
-		
-		if(!Files.isReadable(CRAN_ALL_DIR)){
-			System.out.println("This directory (" + CRAN_ALL_DIR.toAbsolutePath() + ") does not exist");
-			System.exit(1);
-		}
+		// Directory with the CRAN query data.
+		final Path CRAN_QRY_DIR = Paths.get("cran/cran.qry");
 
-		System.out.printf("Indexing \"%s\"\n", CRAN_ALL_DIR);
+		// Opening reader at the index path.
+		IndexReader ireader = DirectoryReader.open(FSDirectory.open(Paths.get(INDEX_DIRECTORY)));
+		IndexSearcher isearcher = new IndexSearcher(ireader);
 
-		// Open the indexing directory.
-		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
-
-		//Analyzer that is used to process TextField
+		// Analyzer that is used to process TextField
 		//Analyzer analyzer = new StandardAnalyzer();
 		// Use more of these later //
 		//Analyzer analyzer = new SimpleAnalyzer();
 		//Analyzer analyzer = new WhitespaceAnalyzer();
 		//Analyzer analyzer = new StopAnalyzer();
 		Analyzer analyzer = new EnglishAnalyzer();
-		// Set up an index writer to add, process and save documents to the index
-		IndexWriterConfig config = new IndexWriterConfig(analyzer);
 
-		// Similarity measure. 
-		config.setSimilarity(new BM25Similarity());  // Vector space + BM25
-		//config.setSimilarity(new ClassicSimilarity());  // Vector space TFID.
-		//config.setSimilarity(new LMDirichletSimilarity());
-		//config.setSimilarity(new BooleanSimilarity());
-		//Combinations of similarity measures.
-		//config.setSimilarity(new MultiSimilarity(new Similarity[]{new BM25Similarity(), new ClassicSimilarity()}));
-		//config.setSimilarity(new MultiSimilarity(new Similarity[]{new ClassicSimilarity(), new LMDirichletSimilarity()}));
-		//config.setSimilarity(new MultiSimilarity(new Similarity[]{new BM25Similarity(), new LMDirichletSimilarity()}));
+		// Similarity measure.
+		isearcher.setSimilarity(new BM25Similarity());    // Vector space + BM25.
+		// Use more of these later.
+		//isearcher.setSimilarity(new ClassicSimilarity());   // Vector space TFID.
+		//isearcher.setSimilarity(new LMDirichletSimilarity());
+		//isearcher.setSimilarity(new BooleanSimilarity());
+		//isearcher.setSimilarity(new MultiSimilarity(new Similarity[]{new BM25Similarity(), new ClassicSimilarity()}));
+		//isearcher.setSimilarity(new MultiSimilarity(new Similarity[]{new ClassicSimilarity(), new LMDirichletSimilarity()}));
+		//isearcher.setSimilarity(new MultiSimilarity(new Similarity[]{new BM25Similarity(), new LMDirichletSimilarity()}));
 
-		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 
-		IndexWriter iwriter = new IndexWriter(directory, config);
-		
-		try(InputStream stream = Files.newInputStream(CRAN_ALL_DIR)){
+		String result_file_path = "final_result.txt";
+		PrintWriter iwriter = new PrintWriter(result_file_path, "UTF-8");
 
-			BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-			System.out.println("Starting indexing..."); 
+		//Reading from the QRY file.
+		BufferedReader br = Files.newBufferedReader(CRAN_QRY_DIR);
 
-			String line = br.readLine(); 
-			String field_data = ""; 
+		MultiFieldQueryParser mfqparser = new MultiFieldQueryParser(new String[]{"title", "author", "content"}, analyzer);
+		//QueryParser qparser = new QueryParser("content",analyzer);
 
-			while(line != null){
+		String line = br.readLine();
+		System.out.printf("Reading queries from \"%s\"\n", CRAN_QRY_DIR);
 
-				Document doc = new Document();
-				if(line.startsWith(".I")){ // ID of document.
-					System.out.println("Indexing document " + line.substring(3));
-					doc.add(new StringField("id", line.substring(3), Field.Store.YES));
+		String id = ""; // Creating our own ID because the IDs in cran.qry are not in order.
+		int n = 0;
+		String query_data = "";
+
+		while(line!=null) {
+			n = n + 1;
+			if (line.startsWith(".I")) { //ID no.
+				id = Integer.toString(n);
+				line = br.readLine();
+			}
+			if (line.startsWith(".W")) { // Content of query.
+				line = br.readLine();
+				while (line!=null && !line.startsWith(".I")) { //Read till the next ID or till end of file (for last query).
+					query_data += line + " ";
 					line = br.readLine();
 				}
-				if(line.startsWith(".T")){ // Title of the document.
-					line = br.readLine(); 
-					while(!line.startsWith(".A")){ // Reading till Author.
-						field_data += line + " ";
-						line = br.readLine();
-					}
-					doc.add(new TextField("title", field_data, Field.Store.YES));
-					field_data = "";  // Empty this for the next field.
-				}
-				if(line.startsWith(".A")){ // Author of document.
-					line = br.readLine(); 
-					while(!line.startsWith(".B")){ // Reading till bibliography.
-						field_data += line + " ";
-						line = br.readLine();
-					}
-					doc.add(new TextField("author", field_data, Field.Store.YES));
-					field_data = ""; // Empty this for the next field.
-				}
-				while(!line.startsWith(".W")) // Reading till content. Ignore bibliography.
-					line = br.readLine();
+			}
+			query_data = query_data.trim(); // Remove spaces in beg and end.
+			query_data = query_data.replace("?", "");  // Remove '?' marks as Lucene threw an error because it's a WildcardQuery character.
 
-				if(line.startsWith(".W")) {
-					// Content of the document.
-					line = br.readLine();
-					while (line != null && !line.startsWith(".I")) { // Reading till end of document/ next document.
-						field_data += line + " ";
-						//System.out.println(field_data);
-						line = br.readLine();
-					}
-					doc.add(new TextField("content", field_data, Field.Store.YES));
-					field_data = ""; // Empty this for the next doc cycle.
-				}
-				// Check document before writing into index.
-				//System.out.println("ID: " + doc.get("id"));
-				//System.out.println("TITLE: " + doc.get("title"));
-				//System.out.println("AUTHOR: " + doc.get("author"));
-				//System.out.println("CONTENT: " + doc.get("content"));
+			Query query = mfqparser.parse(QueryParser.escape(query_data));
+			//Query query = qparser.parse(query_data);
 
-				// Write document into the search index.
-				iwriter.addDocument(doc);
-			}// Repeat.
+			// Searching.
 
+			// Supplying the query to the searcher.
+			TopDocs qry_results = isearcher.search(query,1000);      // Returning 1000 hits.
+			ScoreDoc[] hits = qry_results.scoreDocs; // All relevant documents.
 
-		}catch(IOException e) {
-			System.out.println(("Exception"));
+			// Writing into the results.txt file.
+			// This needs to be in the format for trec_eval
+			// query_id, Q0, document_id, rank, score, STANDARD
+			// System.out.println(hits.length);
+			for (int i = 0; i < hits.length; ++i) { // 225 queries => 1000 hits. Results file - 225*1000
+				Document doc = isearcher.doc(hits[i].doc);
+				iwriter.println(Integer.parseInt(id) + " 0 " + doc.get("id") + " " + i + " " + hits[i].score + " STANDARD");
+			}
+			query_data = "";
 		}
 
+		System.out.printf("Completed search, results in: \"%s\"\n", result_file_path);
 		// Close everything and quit.
-		//iwriter.forceMerge(1);
 		iwriter.close();
+		ireader.close();
+
 	}
 }
+
